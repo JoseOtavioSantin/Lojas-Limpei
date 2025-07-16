@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Catálogo Simples</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #000000;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      background: #000000;
+      max-width: 500px;
+      margin: 0 auto;
+      padding: 20px;
+      border-radius: 8px;
+    }
+    .logo-site {
+      display: block;
+      margin: 0 auto 20px auto;
+      max-width: 480px;
+      height: auto;
+    }
+    .produto {
+      background: #aaa;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      margin-bottom: 15px;
+      padding: 10px;
+    }
+    .produto img {
+      width: 100px;
+      height: 100px;
+      object-fit: contain;
+      border-radius: 8px;
+      background-color: white;
+      border: 1px solid #ccc;
+    }
+    .info {
+      flex: 1;
+      margin-left: 10px;
+      color: white;
+    }
+    .btn-adicionar {
+      background: #5edc78 !important;
+      color: white;
+      height: 36px !important;
+      font-size: 14px !important;
+    }
+    .search-box {
+      width: 96%;
+      padding: 10px;
+      margin-bottom: 20px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
+    .controle-qtd {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    .controle-qtd input {
+      width: 50px;
+      text-align: center;
+      font-size: 16px;
+      border-radius: 5px;
+    }
+    .controle-qtd button {
+      height: 30px;
+      font-size: 16px;
+      background: #eee;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      padding: 0 10px;
+    }
+    #btn-carrinho {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+      background-color: white;
+      padding: 10px;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #btn-carrinho:hover {
+      transform: scale(1.1);
+    }
+    #btn-carrinho img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    #contador-carrinho {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      background-color: red;
+      color: white;
+      font-size: 14px;
+      font-weight: bold;
+      padding: 2px 6px;
+      border-radius: 50%;
+      text-align: center;
+    }
+  </style>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import { getFirestore, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyA9Vsal6phbDpWIJOtkgLUt7H_b9n-LVMc",
+      authDomain: "limpei-19597.firebaseapp.com",
+      projectId: "limpei-19597",
+      storageBucket: "limpei-19597.appspot.com",
+      messagingSenderId: "575195146772",
+      appId: "1:575195146772:web:6ab7306563f0e7ae309501"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const container = document.querySelector('.container');
+    const carrinho = JSON.parse(localStorage.getItem('carrinho')) || [];
+    let produtosCache = [];
+
+    async function carregarProdutos() {
+      const querySnapshot = await getDocs(collection(db, "produtos"));
+      produtosCache = [];
+      querySnapshot.forEach(doc => {
+        produtosCache.push(doc.data());
+      });
+      renderizarProdutos(produtosCache);
+    }
+
+    function renderizarProdutos(lista) {
+      document.querySelectorAll('.produto').forEach(el => el.remove());
+      lista.forEach(data => {
+        const produtoEl = document.createElement('div');
+        produtoEl.classList.add('produto');
+        produtoEl.dataset.nome = data.nome;
+        produtoEl.dataset.preco = data.preco;
+        produtoEl.dataset.codigo = data.codigo || ''; // se quiser usar no carrinho futuramente
+        produtoEl.innerHTML = `
+          <img src="${data.imagem}" alt="Produto">
+          <div class="info">
+            <div>${data.nome}</div>
+            <div>R$ ${parseFloat(data.preco).toFixed(2)}</div>
+            <div class="controle-qtd">
+              <button class="btn-menos">-</button>
+              <input type="number" class="quantidade" value="1" min="1">
+              <button class="btn-mais">+</button>
+              <button class="btn-adicionar">Adicionar ao carrinho</button>
+            </div>
+          </div>
+        `;
+        container.appendChild(produtoEl);
+      });
+      adicionarEventos();
+      atualizarContador();
+    }
+
+    function adicionarEventos() {
+      document.querySelectorAll('.btn-adicionar').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const produtoEl = btn.closest('.produto');
+          const nome = produtoEl.dataset.nome;
+          const preco = parseFloat(produtoEl.dataset.preco);
+          const qtdInput = produtoEl.querySelector('.quantidade');
+          const quantidade = parseInt(qtdInput.value);
+          const imagem = produtoEl.querySelector('img').src;
+
+          if (!quantidade || quantidade <= 0) {
+            alert("Informe uma quantidade válida!");
+            return;
+          }
+
+          // Verifica se o item já está no carrinho
+          const existente = carrinho.find(item => item.nome === nome);
+          if (existente) {
+            existente.quantidade += quantidade;
+          } else {
+            carrinho.push({ nome, preco, quantidade, imagem });
+          }
+
+          qtdInput.value = 1;
+          atualizarContador();
+          localStorage.setItem('carrinho', JSON.stringify(carrinho));
+
+          alert(`Adicionado: ${quantidade}x ${nome}`);
+        });
+      });
+
+      document.querySelectorAll('.btn-menos').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const input = btn.nextElementSibling;
+          let valor = parseInt(input.value);
+          if (valor > 1) input.value = valor - 1;
+        });
+      });
+
+      document.querySelectorAll('.btn-mais').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const input = btn.previousElementSibling;
+          let valor = parseInt(input.value);
+          input.value = valor + 1;
+        });
+      });
+    }
+
+    function atualizarContador() {
+      const contador = document.getElementById('contador-carrinho');
+      let totalItens = 0;
+      carrinho.forEach(item => {
+        totalItens += item.quantidade;
+      });
+      contador.textContent = totalItens;
+    }
+
+    window.filtrarProdutos = function (event) {
+      const termo = event.target.value.toLowerCase();
+      const filtrados = produtosCache.filter(p => p.nome.toLowerCase().includes(termo));
+      renderizarProdutos(filtrados);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const botaoCarrinho = document.getElementById('btn-carrinho');
+      botaoCarrinho.addEventListener('click', () => {
+        localStorage.setItem('carrinho', JSON.stringify(carrinho));
+        window.location.href = 'carrinho.html';
+      });
+    });
+
+    carregarProdutos();
+  </script>
+</head>
+<body>
+  <div class="container">
+    <img src="img/logo.png" alt="Logo" class="logo-site">
+    <input class="search-box" placeholder="Buscar produto..." oninput="filtrarProdutos(event)">
+  </div>
+  <div id="btn-carrinho">
+    <img src="img/carrinho.png" alt="Carrinho">
+    <span id="contador-carrinho">0</span>
+  </div>
+</body>
+</html>

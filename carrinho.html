@@ -1,0 +1,224 @@
+<!-- carrinho.html -->
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meu Carrinho</title>
+  <style>
+    body {
+      background-color: #000000;
+      color: white;
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+    }
+    .logo-site {
+      display: block;
+      margin: 0 auto 20px auto;
+      max-width: 480px;
+      height: auto;
+    }
+    .produto {
+      background: #333;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      display: flex;
+      gap: 15px;
+      align-items: center;
+    }
+    .produto img {
+      width: 100px;
+      height: 100px;
+      object-fit: contain;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      background-color: white;
+    }
+    .produto .info {
+      flex: 1;
+    }
+    .produto .info span {
+      display: block;
+      margin-top: 5px;
+    }
+    .total {
+      font-size: 18px;
+      font-weight: bold;
+      margin-top: 20px;
+    }
+    .botoes {
+      display: flex;
+      gap: 10px;
+      margin-top: 30px;
+    }
+    .btn-voltar, .btn-finalizar {
+      flex: 1;
+      padding: 15px;
+      font-size: 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .btn-voltar {
+      background-color: #555;
+      color: white;
+    }
+    .btn-finalizar {
+      background: #5edc78;
+      color: white;
+    }
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+    .modal {
+      background: #333;
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 400px;
+      width: 90%;
+    }
+    .modal input {
+      width: 95%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border-radius: 6px;
+      border: none;
+      font-size: 16px;
+    }
+    .modal button {
+      background: #5edc78;
+      color: white;
+      padding: 12px;
+      width: 100%;
+      font-size: 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+  </style>
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import { getFirestore, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyA9Vsal6phbDpWIJOtkgLUt7H_b9n-LVMc",
+      authDomain: "limpei-19597.firebaseapp.com",
+      projectId: "limpei-19597",
+      storageBucket: "limpei-19597.appspot.com",
+      messagingSenderId: "575195146772",
+      appId: "1:575195146772:web:6ab7306563f0e7ae309501"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const listaDiv = document.getElementById('lista-carrinho');
+    const totalDiv = document.getElementById('total-compra');
+    const carrinho = JSON.parse(localStorage.getItem('carrinho')) || [];
+    let total = 0;
+
+    async function carregarProdutosComImagem() {
+      const querySnapshot = await getDocs(collection(db, "produtos"));
+      const produtosFirestore = [];
+      querySnapshot.forEach(doc => produtosFirestore.push(doc.data()));
+
+      carrinho.forEach(item => {
+        const produtoFire = produtosFirestore.find(p => p.nome === item.nome);
+        const imagem = produtoFire ? produtoFire.imagem : '';
+        const codigo = produtoFire ? produtoFire.codigo : 'N/A';
+        const subtotal = item.preco * item.quantidade;
+        total += subtotal;
+
+        // Adiciona o código ao item do carrinho
+        item.codigo = codigo;
+
+        const el = document.createElement('div');
+        el.className = 'produto';
+        el.innerHTML = `
+          <img src="${imagem}" alt="${item.nome}">
+          <div class="info">
+            <strong>${item.nome}</strong>
+            <span>Quantidade: ${item.quantidade}</span>
+            <span>Preço: R$ ${item.preco.toFixed(2)}</span>
+            <span>Subtotal: R$ ${subtotal.toFixed(2)}</span>
+          </div>
+        `;
+        listaDiv.appendChild(el);
+      });
+
+      totalDiv.textContent = `Total: R$ ${total.toFixed(2)}`;
+    }
+
+    carregarProdutosComImagem();
+
+    window.abrirModal = function () {
+      document.getElementById('modal').style.display = 'flex';
+    }
+
+    window.enviarPedido = function () {
+      const nome = document.getElementById('nome').value.trim();
+      const cidade = document.getElementById('cidade').value.trim();
+      const whats = document.getElementById('whats').value.trim();
+
+      if (!nome || !cidade || !whats) {
+        alert("Por favor, preencha todos os campos.");
+        return;
+      }
+
+      let mensagem = `Olá, meu nome é ${nome} e gostaria de fazer um pedido:%0A`;
+      mensagem += `%0A*Código | Nome | Preço | Qtd | Subtotal*%0A`;
+
+      carrinho.forEach(item => {
+        const subtotal = item.preco * item.quantidade;
+        mensagem += `${item.codigo} | ${item.nome} | R$${item.preco.toFixed(2)} | ${item.quantidade} | R$${subtotal.toFixed(2)}%0A`;
+      });
+
+      mensagem += `%0A*Total: R$ ${total.toFixed(2)}*`;
+      mensagem += `%0ACidade: ${cidade}`;
+      mensagem += `%0ANúmero: ${whats}`;
+
+      const numeroLoja = "5549984330158";
+      localStorage.removeItem('carrinho');
+      window.location.href = `https://wa.me/${numeroLoja}?text=${mensagem}`;
+    }
+
+    window.voltar = function () {
+      window.location.href = 'index.html';
+    }
+  </script>
+</head>
+<body>
+  <div class="container">
+    <img src="img/logo.png" alt="Logo" class="logo-site" />
+
+    <h2>🛒 Meu Carrinho</h2>
+    <div id="lista-carrinho"></div>
+    <div class="total" id="total-compra">Total: R$ 0,00</div>
+
+    <div class="botoes">
+      <button onclick="voltar()" class="btn-voltar">⬅️ Voltar</button>
+      <button onclick="abrirModal()" class="btn-finalizar">Finalizar Pedido</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal">
+    <div class="modal">
+      <input type="text" id="nome" placeholder="Seu nome" required />
+      <input type="text" id="cidade" placeholder="Cidade" required />
+      <input type="tel" id="whats" placeholder="WhatsApp com DDD" required />
+      <button onclick="enviarPedido()">Enviar Pedido</button>
+    </div>
+  </div>
+</body>
+</html>
