@@ -1,12 +1,74 @@
+<!-- HTML/CSS/JS completo com dropdown estilizado de categorias -->
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-  <meta charset="UTF-8">
-  <title>Admin - Adicionar Produto</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Campo de Categoria Estilizado</title>
+  <style>
+    body {
+      background-color: #1c1c1c;
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      color: white;
+    }
+
+    .dropdown {
+      position: relative;
+      width: 100%;
+      max-width: 400px;
+      margin: 20px 0;
+    }
+
+    .dropdown input {
+      width: 100%;
+      padding: 12px;
+      border-radius: 5px;
+      border: none;
+      font-size: 16px;
+    }
+
+    .dropdown-list {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: #2c2c2c;
+      border-radius: 5px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 10;
+      display: none;
+    }
+
+    .dropdown-item {
+      padding: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+    }
+
+    .dropdown-item input {
+      margin-right: 10px;
+    }
+
+    .dropdown-item:hover {
+      background-color: #3c3c3c;
+    }
+  </style>
+</head>
+<body>
+  <h2>Selecionar Categoria</h2>
+
+  <div class="dropdown">
+    <input type="text" id="inputCategoria" placeholder="Digite ou selecione uma categoria" onclick="toggleDropdown()" readonly />
+    <div class="dropdown-list" id="listaCategorias"></div>
+  </div>
+
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import { getFirestore, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
     const firebaseConfig = {
       apiKey: "AIzaSyA9Vsal6phbDpWIJOtkgLUt7H_b9n-LVMc",
@@ -20,244 +82,53 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    window.salvarProduto = async function salvarProduto(e) {
-      e.preventDefault();
+    const listaEl = document.getElementById('listaCategorias');
+    const inputEl = document.getElementById('inputCategoria');
 
-      const codigo = document.getElementById('codigo').value;
-      const nome = document.getElementById('nome').value;
-      const preco = parseFloat(document.getElementById('preco').value);
-      const imagem = document.getElementById('imagem').value;
-      const categoria = document.getElementById('categoria').value;
+    let categorias = new Set();
+    let selecionada = '';
 
-      if (!codigo || !nome || !preco || !imagem || !categoria) {
-        alert("Preencha todos os campos.");
-        return;
-      }
+    function toggleDropdown() {
+      listaEl.style.display = listaEl.style.display === 'block' ? 'none' : 'block';
+    }
 
-      try {
-        await addDoc(collection(db, "produtos"), {
-          codigo,
-          nome,
-          preco,
-          imagem,
-          categoria
-        });
-        alert("Produto salvo com sucesso!");
-        document.getElementById('formProduto').reset();
-        carregarProdutos();
-        carregarCategoriasExistentes();
-      } catch (error) {
-        console.error("Erro ao salvar produto:", error);
-        alert("Erro ao salvar produto.");
+    function fecharDropdownFora(e) {
+      if (!e.target.closest('.dropdown')) {
+        listaEl.style.display = 'none';
       }
     }
 
-    async function carregarProdutos(filtro = '') {
-      const lista = document.getElementById('listaProdutos');
-      lista.innerHTML = '';
+    window.addEventListener('click', fecharDropdownFora);
+
+    async function carregarCategorias() {
       const querySnapshot = await getDocs(collection(db, "produtos"));
-      querySnapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        if (data.nome.toLowerCase().includes(filtro.toLowerCase())) {
-          const item = document.createElement('div');
-          item.className = 'produtoCard';
-          item.innerHTML = `
-            <div class="cardInterno">
-              <img src="${data.imagem}" alt="Imagem Produto">
-              <div class="info">
-                <input class="editNome" data-id="${docSnap.id}" value="${data.nome}" />
-                <input class="editPreco" data-id="${docSnap.id}" type="number" step="0.01" value="${data.preco}" />
-                <input class="editImagem" data-id="${docSnap.id}" value="${data.imagem}" />
-                <input class="editCategoria" data-id="${docSnap.id}" value="${data.categoria || ''}" />
-                <div class="btn-group">
-                  <button class="btn-editar" onclick="editarProduto('${docSnap.id}')">Editar</button>
-                  <button class="btn-remover" onclick="removerProduto('${docSnap.id}')">Remover</button>
-                </div>
-              </div>
-            </div>
-          `;
-          lista.appendChild(item);
-        }
-      });
-    }
-
-    window.editarProduto = async function (id) {
-      const nome = document.querySelector(`.editNome[data-id='${id}']`).value;
-      const preco = parseFloat(document.querySelector(`.editPreco[data-id='${id}']`).value);
-      const imagem = document.querySelector(`.editImagem[data-id='${id}']`).value;
-      const categoria = document.querySelector(`.editCategoria[data-id='${id}']`).value;
-
-      const produtoRef = doc(db, "produtos", id);
-      await updateDoc(produtoRef, { nome, preco, imagem, categoria });
-      alert("Produto atualizado com sucesso!");
-    }
-
-    window.removerProduto = async function (id) {
-      if (confirm("Tem certeza que deseja remover este produto?")) {
-        await deleteDoc(doc(db, "produtos", id));
-        alert("Produto removido com sucesso!");
-        carregarProdutos();
-        carregarCategoriasExistentes();
-      }
-    }
-
-    window.filtrarProdutos = function () {
-      const filtro = document.getElementById('filtroBusca').value;
-      carregarProdutos(filtro);
-    }
-
-    async function carregarCategoriasExistentes() {
-      const querySnapshot = await getDocs(collection(db, "produtos"));
-      const categoriasSet = new Set();
-
-      querySnapshot.forEach(docSnap => {
-        const data = docSnap.data();
+      querySnapshot.forEach(doc => {
+        const data = doc.data();
         if (data.categoria) {
-          categoriasSet.add(data.categoria);
+          categorias.add(data.categoria);
         }
       });
+      renderizarCategorias();
+    }
 
-      const datalist = document.getElementById("listaCategorias");
-      datalist.innerHTML = "";
-      categoriasSet.forEach(cat => {
-        const option = document.createElement("option");
-        option.value = cat;
-        datalist.appendChild(option);
+    function renderizarCategorias() {
+      listaEl.innerHTML = '';
+      categorias.forEach(cat => {
+        const item = document.createElement('div');
+        item.className = 'dropdown-item';
+        item.innerHTML = `
+          <input type="radio" name="cat" value="${cat}" /> <span>${cat}</span>
+        `;
+        item.onclick = () => {
+          inputEl.value = cat;
+          selecionada = cat;
+          listaEl.style.display = 'none';
+        };
+        listaEl.appendChild(item);
       });
     }
 
-    carregarProdutos();
-    carregarCategoriasExistentes();
+    carregarCategorias();
   </script>
-
-  <style>
-    body {
-      background-color: #1c1c1c;
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      color: white;
-      margin: 0;
-    }
-    .container {
-      max-width: 800px;
-      margin: auto;
-      background: #2c2c2c;
-      padding: 20px;
-      border-radius: 10px;
-    }
-    h2 {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    input, button {
-      padding: 10px;
-      border: none;
-      border-radius: 5px;
-      font-size: 16px;
-    }
-    button {
-      background-color: #5edc78;
-      color: white;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #4bc468;
-    }
-    #listaProdutos {
-      margin-top: 30px;
-    }
-    .produtoCard {
-      background: #aaa;
-      border-radius: 8px;
-      margin-bottom: 15px;
-      padding: 10px;
-    }
-    .cardInterno {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: flex-start;
-      gap: 10px;
-    }
-    .cardInterno img {
-      width: 100px;
-      height: 100px;
-      object-fit: contain;
-      border-radius: 8px;
-      background-color: white;
-      border: 1px solid #ccc;
-    }
-    .info {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      min-width: 200px;
-    }
-    .info input {
-      margin: 0;
-    }
-    .btn-group {
-      display: flex;
-      gap: 10px;
-    }
-    .btn-editar, .btn-remover {
-      flex: 1;
-    }
-    .formCard, .searchCard {
-      background: #aaa;
-      padding: 15px;
-      border-radius: 10px;
-      margin-bottom: 20px;
-    }
-    .formGrid {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      margin-bottom: 10px;
-    }
-    .formCard button {
-      width: 100%;
-    }
-    .searchCard input {
-      width: 97%;
-    }
-    @media (max-width: 600px) {
-      .cardInterno {
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-      }
-      .cardInterno img {
-        margin-bottom: 10px;
-      }
-    }
-  </style>
-</head>
-
-<body>
-  <div class="container">
-    <h2>Adicionar Produto</h2>
-    <div class="formCard">
-      <form id="formProduto" onsubmit="salvarProduto(event)">
-        <div class="formGrid">
-          <input id="codigo" placeholder="Código do Produto" required />
-          <input id="nome" placeholder="Nome do Produto" required />
-          <input id="preco" type="number" placeholder="Preço (ex: 50.00)" required step="0.01" />
-          <input id="imagem" placeholder="URL da Imagem" required />
-
-          <!-- Campo de categoria com datalist -->
-          <input id="categoria" list="listaCategorias" placeholder="Categoria (ex: Limpeza, Alimentos)" required />
-          <datalist id="listaCategorias"></datalist>
-        </div>
-        <button type="submit">Salvar Produto</button>
-      </form>
-    </div>
-
-    <div class="searchCard">
-      <input id="filtroBusca" placeholder="Buscar produto por nome" oninput="filtrarProdutos()" />
-    </div>
-
-    <div id="listaProdutos"></div>
-  </div>
 </body>
 </html>
