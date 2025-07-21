@@ -12,7 +12,7 @@
       apiKey: "AIzaSyA9Vsal6phbDpWIJOtkgLUt7H_b9n-LVMc",
       authDomain: "limpei-19597.firebaseapp.com",
       projectId: "limpei-19597",
-      storageBucket: "limpei-19597.firebasestorage.app",
+      storageBucket: "limpei-19597.appspot.com",
       messagingSenderId: "575195146772",
       appId: "1:575195146772:web:6ab7306563f0e7ae309501"
     };
@@ -27,8 +27,9 @@
       const nome = document.getElementById('nome').value;
       const preco = parseFloat(document.getElementById('preco').value);
       const imagem = document.getElementById('imagem').value;
+      const categoria = document.getElementById('categoria').value;
 
-      if (!codigo || !nome || !preco || !imagem) {
+      if (!codigo || !nome || !preco || !imagem || !categoria) {
         alert("Preencha todos os campos.");
         return;
       }
@@ -38,11 +39,13 @@
           codigo,
           nome,
           preco,
-          imagem
+          imagem,
+          categoria
         });
         alert("Produto salvo com sucesso!");
         document.getElementById('formProduto').reset();
         carregarProdutos();
+        carregarCategoriasExistentes();
       } catch (error) {
         console.error("Erro ao salvar produto:", error);
         alert("Erro ao salvar produto.");
@@ -53,7 +56,7 @@
       const lista = document.getElementById('listaProdutos');
       lista.innerHTML = '';
       const querySnapshot = await getDocs(collection(db, "produtos"));
-      querySnapshot.forEach(async docSnap => {
+      querySnapshot.forEach(docSnap => {
         const data = docSnap.data();
         if (data.nome.toLowerCase().includes(filtro.toLowerCase())) {
           const item = document.createElement('div');
@@ -65,6 +68,7 @@
                 <input class="editNome" data-id="${docSnap.id}" value="${data.nome}" />
                 <input class="editPreco" data-id="${docSnap.id}" type="number" step="0.01" value="${data.preco}" />
                 <input class="editImagem" data-id="${docSnap.id}" value="${data.imagem}" />
+                <input class="editCategoria" data-id="${docSnap.id}" value="${data.categoria || ''}" />
                 <div class="btn-group">
                   <button class="btn-editar" onclick="editarProduto('${docSnap.id}')">Editar</button>
                   <button class="btn-remover" onclick="removerProduto('${docSnap.id}')">Remover</button>
@@ -81,9 +85,10 @@
       const nome = document.querySelector(`.editNome[data-id='${id}']`).value;
       const preco = parseFloat(document.querySelector(`.editPreco[data-id='${id}']`).value);
       const imagem = document.querySelector(`.editImagem[data-id='${id}']`).value;
+      const categoria = document.querySelector(`.editCategoria[data-id='${id}']`).value;
 
       const produtoRef = doc(db, "produtos", id);
-      await updateDoc(produtoRef, { nome, preco, imagem });
+      await updateDoc(produtoRef, { nome, preco, imagem, categoria });
       alert("Produto atualizado com sucesso!");
     }
 
@@ -92,6 +97,7 @@
         await deleteDoc(doc(db, "produtos", id));
         alert("Produto removido com sucesso!");
         carregarProdutos();
+        carregarCategoriasExistentes();
       }
     }
 
@@ -100,8 +106,30 @@
       carregarProdutos(filtro);
     }
 
+    async function carregarCategoriasExistentes() {
+      const querySnapshot = await getDocs(collection(db, "produtos"));
+      const categoriasSet = new Set();
+
+      querySnapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        if (data.categoria) {
+          categoriasSet.add(data.categoria);
+        }
+      });
+
+      const datalist = document.getElementById("listaCategorias");
+      datalist.innerHTML = "";
+      categoriasSet.forEach(cat => {
+        const option = document.createElement("option");
+        option.value = cat;
+        datalist.appendChild(option);
+      });
+    }
+
     carregarProdutos();
+    carregarCategoriasExistentes();
   </script>
+
   <style>
     body {
       background-color: #1c1c1c;
@@ -205,6 +233,7 @@
     }
   </style>
 </head>
+
 <body>
   <div class="container">
     <h2>Adicionar Produto</h2>
@@ -215,6 +244,10 @@
           <input id="nome" placeholder="Nome do Produto" required />
           <input id="preco" type="number" placeholder="Preço (ex: 50.00)" required step="0.01" />
           <input id="imagem" placeholder="URL da Imagem" required />
+
+          <!-- Campo de categoria com datalist -->
+          <input id="categoria" list="listaCategorias" placeholder="Categoria (ex: Limpeza, Alimentos)" required />
+          <datalist id="listaCategorias"></datalist>
         </div>
         <button type="submit">Salvar Produto</button>
       </form>
