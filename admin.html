@@ -117,17 +117,45 @@
         }
       });
 
-      const datalist = document.getElementById("listaCategorias");
-      datalist.innerHTML = "";
+      const select = document.getElementById("categoria");
+      const novaCategoriaOption = select.querySelector("option[value='nova']");
+      select.innerHTML = '<option value="">Selecione uma categoria</option>';
+
       categoriasSet.forEach(cat => {
         const option = document.createElement("option");
         option.value = cat;
-        datalist.appendChild(option);
+        option.textContent = cat;
+        select.appendChild(option);
       });
+
+      select.appendChild(novaCategoriaOption || (() => {
+        const nova = document.createElement("option");
+        nova.value = "nova";
+        nova.textContent = "+ Nova Categoria...";
+        return nova;
+      })());
     }
 
-    carregarProdutos();
-    carregarCategoriasExistentes();
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("categoria").addEventListener("change", (e) => {
+        if (e.target.value === "nova") {
+          const novaCategoria = prompt("Digite o nome da nova categoria:");
+          if (novaCategoria) {
+            const select = e.target;
+            const option = document.createElement("option");
+            option.value = novaCategoria;
+            option.textContent = novaCategoria;
+            select.insertBefore(option, select.querySelector("option[value='nova']"));
+            select.value = novaCategoria;
+          } else {
+            e.target.value = "";
+          }
+        }
+      });
+
+      carregarProdutos();
+      carregarCategoriasExistentes();
+    });
   </script>
 
   <style>
@@ -149,11 +177,15 @@
       text-align: center;
       margin-bottom: 20px;
     }
-    input, button {
+    input, select, button {
       padding: 10px;
       border: none;
       border-radius: 5px;
       font-size: 16px;
+    }
+    select {
+      background-color: #fff;
+      color: #000;
     }
     button {
       background-color: #5edc78;
@@ -245,9 +277,11 @@
           <input id="preco" type="number" placeholder="Preço (ex: 50.00)" required step="0.01" />
           <input id="imagem" placeholder="URL da Imagem" required />
 
-          <!-- Campo de categoria com datalist -->
-          <input id="categoria" list="listaCategorias" placeholder="Categoria (ex: Limpeza, Alimentos)" required />
-          <datalist id="listaCategorias"></datalist>
+          <!-- NOVO CAMPO DE CATEGORIA COM SELECT BONITO -->
+          <select id="categoria" required>
+            <option value="">Selecione uma categoria</option>
+            <option value="nova">+ Nova Categoria...</option>
+          </select>
         </div>
         <button type="submit">Salvar Produto</button>
       </form>
