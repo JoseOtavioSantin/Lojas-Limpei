@@ -19,7 +19,6 @@
       margin: 0 auto;
       padding: 20px;
       border-radius: 8px;
-      position: relative;
     }
 
     .logo-site {
@@ -95,10 +94,9 @@
     }
 
     #btn-carrinho {
-      position: sticky;
+      position: fixed;
       bottom: 20px;
-      margin-left: auto;
-      margin-right: 20px;
+      right: 20px;
       width: 60px;
       height: 60px;
       border-radius: 50%;
@@ -107,7 +105,7 @@
       padding: 10px;
       cursor: pointer;
       transition: transform 0.2s ease;
-      z-index: 1000;
+      z-index: 9999;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -269,12 +267,12 @@
   <div class="container">
     <img src="img/logo.png" alt="Logo" class="logo-site">
     <input class="search-box" placeholder="Buscar produto..." oninput="filtrarProdutos(event)">
-    
-    <!-- BOTÃO CARRINHO AGORA DENTRO DO CONTAINER -->
-    <div id="btn-carrinho">
-      <img src="img/carrinho.png" alt="Carrinho">
-      <span id="contador-carrinho">0</span>
-    </div>
+  </div>
+
+  <!-- Botão fora do container, flutuando -->
+  <div id="btn-carrinho">
+    <img src="img/carrinho.png" alt="Carrinho">
+    <span id="contador-carrinho">0</span>
   </div>
 </body>
 </html>
