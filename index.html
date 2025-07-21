@@ -9,8 +9,8 @@
       font-family: Arial, sans-serif;
       background-color: #000000;
       margin: 0;
-      padding: 20px;
-      overflow-x: hidden; /* evita rolagem lateral */
+      padding: 20px 0;
+      overflow-x: hidden;
     }
 
     .container {
@@ -19,6 +19,7 @@
       margin: 0 auto;
       padding: 20px;
       border-radius: 8px;
+      position: relative;
     }
 
     .logo-site {
@@ -94,10 +95,10 @@
     }
 
     #btn-carrinho {
-      position: fixed;
-      bottom: 30px;
-      right: 10px; /* corrigido */
-      max-width: 90vw; /* impede ultrapassar a tela */
+      position: sticky;
+      bottom: 20px;
+      margin-left: auto;
+      margin-right: 20px;
       width: 60px;
       height: 60px;
       border-radius: 50%;
@@ -268,11 +269,12 @@
   <div class="container">
     <img src="img/logo.png" alt="Logo" class="logo-site">
     <input class="search-box" placeholder="Buscar produto..." oninput="filtrarProdutos(event)">
-  </div>
-
-  <div id="btn-carrinho">
-    <img src="img/carrinho.png" alt="Carrinho">
-    <span id="contador-carrinho">0</span>
+    
+    <!-- BOTÃO CARRINHO AGORA DENTRO DO CONTAINER -->
+    <div id="btn-carrinho">
+      <img src="img/carrinho.png" alt="Carrinho">
+      <span id="contador-carrinho">0</span>
+    </div>
   </div>
 </body>
 </html>
