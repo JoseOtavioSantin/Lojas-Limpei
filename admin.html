@@ -1,98 +1,33 @@
+<!-- HTML/CSS/JS completo com dropdown estilizado de categorias e campo editável -->
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-  <meta charset="UTF-8">
-  <title>Admin - Adicionar Produto</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Campo de Categoria Estilizado</title>
   <style>
     body {
       background-color: #1c1c1c;
       font-family: Arial, sans-serif;
       padding: 20px;
       color: white;
-      margin: 0;
     }
-    .container {
-      max-width: 800px;
-      margin: auto;
-      background: #2c2c2c;
-      padding: 20px;
-      border-radius: 10px;
-    }
-    h2 {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    input, button {
-      padding: 10px;
-      border: none;
-      border-radius: 5px;
-      font-size: 16px;
-    }
-    button {
-      background-color: #5edc78;
-      color: white;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #4bc468;
-    }
-    #listaProdutos {
-      margin-top: 30px;
-    }
-    .produtoCard {
-      background: #aaa;
-      border-radius: 8px;
-      margin-bottom: 15px;
-      padding: 10px;
-    }
-    .cardInterno {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: flex-start;
-      gap: 10px;
-    }
-    .cardInterno img {
-      width: 100px;
-      height: 100px;
-      object-fit: contain;
-      border-radius: 8px;
-      background-color: white;
-      border: 1px solid #ccc;
-    }
-    .info {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      min-width: 200px;
-    }
-    .btn-group {
-      display: flex;
-      gap: 10px;
-    }
-    .formCard, .searchCard {
-      background: #aaa;
-      padding: 15px;
-      border-radius: 10px;
-      margin-bottom: 20px;
-    }
-    .formGrid {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
+
     .dropdown {
       position: relative;
       width: 100%;
+      max-width: 400px;
+      margin: 20px 0;
     }
+
     .dropdown input {
       width: 100%;
-      padding: 10px;
+      padding: 12px;
       border-radius: 5px;
       border: none;
       font-size: 16px;
     }
+
     .dropdown-list {
       position: absolute;
       top: 100%;
@@ -106,53 +41,30 @@
       z-index: 10;
       display: none;
     }
+
     .dropdown-item {
       padding: 10px;
       cursor: pointer;
       display: flex;
       align-items: center;
     }
+
     .dropdown-item:hover {
       background-color: #3c3c3c;
-    }
-    @media (max-width: 600px) {
-      .cardInterno {
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-      }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h2>Adicionar Produto</h2>
-    <div class="formCard">
-      <form id="formProduto">
-        <div class="formGrid">
-          <input id="codigo" placeholder="Código do Produto" required />
-          <input id="nome" placeholder="Nome do Produto" required />
-          <input id="preco" type="number" placeholder="Preço (ex: 50.00)" required step="0.01" />
-          <input id="imagem" placeholder="URL da Imagem" required />
-          <div class="dropdown">
-            <input type="text" id="inputCategoria" placeholder="Digite ou selecione uma categoria" onclick="toggleDropdown()" required readonly />
-            <div class="dropdown-list" id="listaCategorias"></div>
-          </div>
-        </div>
-        <button type="submit">Salvar Produto</button>
-      </form>
-    </div>
+  <h2>Selecionar Categoria</h2>
 
-    <div class="searchCard">
-      <input id="filtroBusca" placeholder="Buscar produto por nome" oninput="filtrarProdutos()" />
-    </div>
-
-    <div id="listaProdutos"></div>
+  <div class="dropdown">
+    <input type="text" id="inputCategoria" placeholder="Digite ou selecione uma categoria" oninput="filtrarCategorias()" onclick="toggleDropdown()" />
+    <div class="dropdown-list" id="listaCategorias"></div>
   </div>
 
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import { getFirestore, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
     const firebaseConfig = {
       apiKey: "AIzaSyA9Vsal6phbDpWIJOtkgLUt7H_b9n-LVMc",
@@ -166,104 +78,24 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    const form = document.getElementById('formProduto');
-    const listaEl = document.getElementById('listaProdutos');
-    const dropdownList = document.getElementById('listaCategorias');
-    const inputCategoria = document.getElementById('inputCategoria');
+    const listaEl = document.getElementById('listaCategorias');
+    const inputEl = document.getElementById('inputCategoria');
 
     let categorias = new Set();
-
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      const codigo = document.getElementById('codigo').value;
-      const nome = document.getElementById('nome').value;
-      const preco = parseFloat(document.getElementById('preco').value);
-      const imagem = document.getElementById('imagem').value;
-      const categoria = inputCategoria.value;
-
-      if (!codigo || !nome || !preco || !imagem || !categoria) {
-        alert("Preencha todos os campos.");
-        return;
-      }
-
-      try {
-        await addDoc(collection(db, "produtos"), {
-          codigo,
-          nome,
-          preco,
-          imagem,
-          categoria
-        });
-        alert("Produto salvo com sucesso!");
-        form.reset();
-        carregarProdutos();
-        carregarCategorias();
-      } catch (error) {
-        alert("Erro ao salvar produto.");
-        console.error(error);
-      }
-    });
-
-    async function carregarProdutos(filtro = '') {
-      listaEl.innerHTML = '';
-      const querySnapshot = await getDocs(collection(db, "produtos"));
-      querySnapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        if (data.nome.toLowerCase().includes(filtro.toLowerCase())) {
-          const div = document.createElement('div');
-          div.className = 'produtoCard';
-          div.innerHTML = `
-            <div class="cardInterno">
-              <img src="${data.imagem}" alt="Imagem Produto">
-              <div class="info">
-                <input value="${data.nome}" disabled />
-                <input type="number" value="${data.preco}" disabled />
-                <input value="${data.imagem}" disabled />
-                <div class="btn-group">
-                  <button onclick="removerProduto('${docSnap.id}')">Remover</button>
-                </div>
-              </div>
-            </div>`;
-          listaEl.appendChild(div);
-        }
-      });
-    }
-
-    async function removerProduto(id) {
-      if (confirm("Tem certeza que deseja remover este produto?")) {
-        await deleteDoc(doc(db, "produtos", id));
-        alert("Produto removido!");
-        carregarProdutos();
-        carregarCategorias();
-      }
-    }
-
-    window.removerProduto = removerProduto;
+    let categoriasArray = [];
 
     function toggleDropdown() {
-      dropdownList.style.display = dropdownList.style.display === 'block' ? 'none' : 'block';
+      listaEl.style.display = 'block';
+      renderizarCategorias(inputEl.value.toLowerCase());
     }
 
-    window.addEventListener('click', e => {
+    function fecharDropdownFora(e) {
       if (!e.target.closest('.dropdown')) {
-        dropdownList.style.display = 'none';
+        listaEl.style.display = 'none';
       }
-    });
-
-    function renderizarCategorias() {
-      dropdownList.innerHTML = '';
-      categorias.forEach(cat => {
-        const div = document.createElement('div');
-        div.className = 'dropdown-item';
-        div.textContent = cat;
-        div.onclick = () => {
-          inputCategoria.value = cat;
-          dropdownList.style.display = 'none';
-        };
-        dropdownList.appendChild(div);
-      });
     }
+
+    window.addEventListener('click', fecharDropdownFora);
 
     async function carregarCategorias() {
       categorias.clear();
@@ -274,15 +106,40 @@
           categorias.add(data.categoria);
         }
       });
+      categoriasArray = [...categorias];
       renderizarCategorias();
     }
 
-    window.filtrarProdutos = function () {
-      const filtro = document.getElementById('filtroBusca').value;
-      carregarProdutos(filtro);
+    function renderizarCategorias(filtro = '') {
+      listaEl.innerHTML = '';
+      const filtradas = categoriasArray.filter(cat => cat.toLowerCase().includes(filtro));
+      if (filtradas.length === 0 && filtro) {
+        const nova = document.createElement('div');
+        nova.className = 'dropdown-item';
+        nova.textContent = `Criar nova categoria: "${inputEl.value}"`;
+        nova.onclick = () => {
+          inputEl.value = inputEl.value;
+          listaEl.style.display = 'none';
+        };
+        listaEl.appendChild(nova);
+      } else {
+        filtradas.forEach(cat => {
+          const item = document.createElement('div');
+          item.className = 'dropdown-item';
+          item.textContent = cat;
+          item.onclick = () => {
+            inputEl.value = cat;
+            listaEl.style.display = 'none';
+          };
+          listaEl.appendChild(item);
+        });
+      }
     }
 
-    carregarProdutos();
+    window.filtrarCategorias = function () {
+      renderizarCategorias(inputEl.value.toLowerCase());
+    }
+
     carregarCategorias();
   </script>
 </body>
