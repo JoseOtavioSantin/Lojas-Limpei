@@ -53,11 +53,11 @@
     }
     .botoes {
       display: flex;
+      flex-direction: column;
       gap: 10px;
       margin-top: 30px;
     }
     .btn-voltar, .btn-finalizar {
-      flex: 1;
       padding: 15px;
       font-size: 16px;
       border: none;
@@ -196,6 +196,15 @@
     window.voltar = function () {
       window.location.href = 'index.html';
     }
+
+    window.confirmarLimparCarrinho = function () {
+      const confirmar = confirm("Tem certeza que deseja limpar o carrinho?");
+      if (confirmar) {
+        localStorage.removeItem('carrinho');
+        alert("Carrinho limpo com sucesso!");
+        location.reload();
+      }
+    }
   </script>
 </head>
 <body>
@@ -209,6 +218,7 @@
     <div class="botoes">
       <button onclick="voltar()" class="btn-voltar">⬅️ Voltar</button>
       <button onclick="abrirModal()" class="btn-finalizar">Finalizar Pedido</button>
+      <button onclick="confirmarLimparCarrinho()" class="btn-voltar">🗑️ Limpar Carrinho</button>
     </div>
   </div>
 
