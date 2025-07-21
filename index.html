@@ -10,20 +10,26 @@
       background-color: #000000;
       margin: 0;
       padding: 20px;
+      overflow-x: hidden;
     }
+
     .container {
       background: #000000;
+      width: 100%;
       max-width: 500px;
       margin: 0 auto;
       padding: 20px;
       border-radius: 8px;
+      box-sizing: border-box;
     }
+
     .logo-site {
       display: block;
       margin: 0 auto 20px auto;
       max-width: 480px;
       height: auto;
     }
+
     .produto {
       background: #aaa;
       border-radius: 8px;
@@ -31,7 +37,9 @@
       align-items: center;
       margin-bottom: 15px;
       padding: 10px;
+      gap: 10px;
     }
+
     .produto img {
       width: 100px;
       height: 100px;
@@ -40,17 +48,20 @@
       background-color: white;
       border: 1px solid #ccc;
     }
+
     .info {
       flex: 1;
       margin-left: 10px;
       color: white;
     }
+
     .btn-adicionar {
       background: #5edc78 !important;
       color: white;
       height: 36px !important;
       font-size: 14px !important;
     }
+
     .search-box {
       width: 96%;
       padding: 10px;
@@ -59,6 +70,7 @@
       border: 1px solid #ccc;
       font-size: 16px;
     }
+
     .controle-qtd {
       display: flex;
       align-items: center;
@@ -66,12 +78,14 @@
       margin-top: 8px;
       flex-wrap: wrap;
     }
+
     .controle-qtd input {
       width: 50px;
       text-align: center;
       font-size: 16px;
       border-radius: 5px;
     }
+
     .controle-qtd button {
       height: 30px;
       font-size: 16px;
@@ -81,6 +95,7 @@
       cursor: pointer;
       padding: 0 10px;
     }
+
     #btn-carrinho {
       position: fixed;
       bottom: 30px;
@@ -98,14 +113,17 @@
       align-items: center;
       justify-content: center;
     }
+
     #btn-carrinho:hover {
       transform: scale(1.1);
     }
+
     #btn-carrinho img {
       width: 100%;
       height: 100%;
       object-fit: contain;
     }
+
     #contador-carrinho {
       position: absolute;
       top: 6px;
@@ -117,6 +135,50 @@
       padding: 2px 6px;
       border-radius: 50%;
       text-align: center;
+    }
+
+    /* RESPONSIVIDADE PARA CELULAR */
+    @media (max-width: 480px) {
+      .produto {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .produto img {
+        width: 100%;
+        height: auto;
+        margin-bottom: 10px;
+      }
+
+      .info {
+        margin-left: 0;
+        width: 100%;
+      }
+
+      .controle-qtd {
+        flex-wrap: wrap;
+        gap: 5px;
+      }
+
+      .controle-qtd input {
+        width: 40px;
+      }
+
+      .btn-adicionar {
+        width: 100%;
+        font-size: 13px !important;
+        height: 32px !important;
+      }
+
+      .controle-qtd button {
+        font-size: 14px;
+        height: 28px;
+        padding: 0 8px;
+      }
+
+      .search-box {
+        font-size: 14px;
+      }
     }
   </style>
 
@@ -156,7 +218,7 @@
         produtoEl.classList.add('produto');
         produtoEl.dataset.nome = data.nome;
         produtoEl.dataset.preco = data.preco;
-        produtoEl.dataset.codigo = data.codigo || ''; // se quiser usar no carrinho futuramente
+        produtoEl.dataset.codigo = data.codigo || '';
         produtoEl.innerHTML = `
           <img src="${data.imagem}" alt="Produto">
           <div class="info">
@@ -191,7 +253,6 @@
             return;
           }
 
-          // Verifica se o item já está no carrinho
           const existente = carrinho.find(item => item.nome === nome);
           if (existente) {
             existente.quantidade += quantidade;
@@ -202,7 +263,6 @@
           qtdInput.value = 1;
           atualizarContador();
           localStorage.setItem('carrinho', JSON.stringify(carrinho));
-
           alert(`Adicionado: ${quantidade}x ${nome}`);
         });
       });
@@ -255,6 +315,7 @@
     <img src="img/logo.png" alt="Logo" class="logo-site">
     <input class="search-box" placeholder="Buscar produto..." oninput="filtrarProdutos(event)">
   </div>
+
   <div id="btn-carrinho">
     <img src="img/carrinho.png" alt="Carrinho">
     <span id="contador-carrinho">0</span>
