@@ -19,7 +19,7 @@
       margin: 0 auto;
       padding: 20px;
       border-radius: 8px;
-      position: relative; /* necessário para botão absoluto funcionar */
+      position: relative;
     }
 
     .logo-site {
@@ -94,8 +94,9 @@
       padding: 0 10px;
     }
 
+    /* BOTÃO FIXO NA TELA */
     #btn-carrinho {
-      position: absolute;
+      position: fixed;
       bottom: 20px;
       right: 20px;
       width: 60px;
@@ -106,7 +107,7 @@
       padding: 10px;
       cursor: pointer;
       transition: transform 0.2s ease;
-      z-index: 100;
+      z-index: 1000;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -268,12 +269,13 @@
   <div class="container">
     <img src="img/logo.png" alt="Logo" class="logo-site">
     <input class="search-box" placeholder="Buscar produto..." oninput="filtrarProdutos(event)">
-    
-    <!-- Botão do carrinho dentro da .container, mas fixo visualmente -->
-    <div id="btn-carrinho">
-      <img src="img/carrinho.png" alt="Carrinho">
-      <span id="contador-carrinho">0</span>
-    </div>
+    <!-- Os produtos serão adicionados via JS -->
+  </div>
+
+  <!-- Botão fora da container, fixo na tela -->
+  <div id="btn-carrinho">
+    <img src="img/carrinho.png" alt="Carrinho">
+    <span id="contador-carrinho">0</span>
   </div>
 </body>
 </html>
