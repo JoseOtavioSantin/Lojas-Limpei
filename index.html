@@ -29,6 +29,45 @@
       height: auto;
     }
 
+    .search-box {
+      width: 96%;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
+
+    .categoria-box {
+      background: #fff;
+      color: #000;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    .categoria-lista {
+      background: #111;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 15px;
+      color: white;
+      max-height: 200px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .categoria-lista label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      cursor: pointer;
+    }
+
     .produto {
       background: #aaa;
       border-radius: 8px;
@@ -60,15 +99,6 @@
       font-size: 14px !important;
     }
 
-    .search-box {
-      width: 96%;
-      padding: 10px;
-      margin-bottom: 20px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      font-size: 16px;
-    }
-
     .controle-qtd {
       display: flex;
       align-items: center;
@@ -94,7 +124,6 @@
       padding: 0 10px;
     }
 
-    /* BOTÃO FIXO NA TELA */
     #btn-carrinho {
       position: fixed;
       bottom: 20px;
@@ -156,6 +185,7 @@
     const container = document.querySelector('.container');
     const carrinho = JSON.parse(localStorage.getItem('carrinho')) || [];
     let produtosCache = [];
+    let categoriasSelecionadas = [];
 
     async function carregarProdutos() {
       const querySnapshot = await getDocs(collection(db, "produtos"));
@@ -163,7 +193,19 @@
       querySnapshot.forEach(doc => {
         produtosCache.push(doc.data());
       });
+
       renderizarProdutos(produtosCache);
+
+      const categoriasUnicas = [...new Set(produtosCache.map(p => p.categoria))];
+      const listaCat = document.getElementById('lista-categorias');
+      listaCat.innerHTML = '';
+      categoriasUnicas.forEach(cat => {
+        const checkbox = document.createElement('label');
+        checkbox.innerHTML = `
+          <input type="checkbox" value="${cat}" onchange="filtrarPorCategoria()"> ${cat}
+        `;
+        listaCat.appendChild(checkbox);
+      });
     }
 
     function renderizarProdutos(lista) {
@@ -174,6 +216,7 @@
         produtoEl.dataset.nome = data.nome;
         produtoEl.dataset.preco = data.preco;
         produtoEl.dataset.codigo = data.codigo || '';
+        produtoEl.dataset.categoria = data.categoria || '';
         produtoEl.innerHTML = `
           <img src="${data.imagem}" alt="Produto">
           <div class="info">
@@ -254,6 +297,30 @@
       renderizarProdutos(filtrados);
     }
 
+    window.toggleCategorias = function () {
+      const lista = document.getElementById('lista-categorias');
+      lista.style.display = lista.style.display === 'none' ? 'block' : 'none';
+    }
+
+    window.filtrarPorCategoria = function () {
+      const selecionadas = Array.from(document.querySelectorAll('#lista-categorias input:checked'))
+        .map(c => c.value);
+      categoriasSelecionadas = selecionadas;
+
+      let lista = produtosCache;
+
+      if (categoriasSelecionadas.length > 0) {
+        lista = lista.filter(p => categoriasSelecionadas.includes(p.categoria));
+      }
+
+      const termo = document.querySelector('.search-box').value.toLowerCase();
+      if (termo) {
+        lista = lista.filter(p => p.nome.toLowerCase().includes(termo));
+      }
+
+      renderizarProdutos(lista);
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       const botaoCarrinho = document.getElementById('btn-carrinho');
       botaoCarrinho.addEventListener('click', () => {
@@ -269,10 +336,10 @@
   <div class="container">
     <img src="img/logo.png" alt="Logo" class="logo-site">
     <input class="search-box" placeholder="Buscar produto..." oninput="filtrarProdutos(event)">
-    <!-- Os produtos serão adicionados via JS -->
+    <div class="categoria-box" onclick="toggleCategorias()">Filtrar por categoria ⮟</div>
+    <div id="lista-categorias" class="categoria-lista"></div>
   </div>
 
-  <!-- Botão fora da container, fixo na tela -->
   <div id="btn-carrinho">
     <img src="img/carrinho.png" alt="Carrinho">
     <span id="contador-carrinho">0</span>
