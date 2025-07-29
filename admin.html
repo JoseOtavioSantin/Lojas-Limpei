@@ -6,7 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import * as XLSX from "https://cdn.sheetjs.com/xlsx-0.20.0/package/xlsx.mjs";
 
     const firebaseConfig = {
       apiKey: "AIzaSyA9Vsal6phbDpWIJOtkgLUt7H_b9n-LVMc",
@@ -20,255 +21,209 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    window.salvarProduto = async function salvarProduto(e) {
-      e.preventDefault();
+    window.importarExcel = async function (event) {
+      const file = event.target.files[0];
+      if (!file || !file.name.endsWith(".xlsx")) return;
 
-      const codigo = document.getElementById('codigo').value;
-      const nome = document.getElementById('nome').value;
-      const preco = parseFloat(document.getElementById('preco').value);
-      const imagem = document.getElementById('imagem').value;
-      const categoria = document.getElementById('categoria').value;
+      document.getElementById("loadingOverlay").style.display = "flex";
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const planilha = workbook.Sheets[workbook.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(planilha);
 
-      if (!codigo || !nome || !preco || !imagem || !categoria) {
-        alert("Preencha todos os campos.");
-        return;
-      }
+      let importados = 0;
+      let atualizados = 0;
 
-      try {
-        await addDoc(collection(db, "produtos"), {
-          codigo,
-          nome,
-          preco,
-          imagem,
-          categoria
-        });
-        alert("Produto salvo com sucesso!");
-        document.getElementById('formProduto').reset();
-        carregarProdutos();
-        carregarCategoriasExistentes();
-      } catch (error) {
-        console.error("Erro ao salvar produto:", error);
-        alert("Erro ao salvar produto.");
-      }
-    }
-
-    async function carregarProdutos(filtro = '') {
-      const lista = document.getElementById('listaProdutos');
-      lista.innerHTML = '';
-      const querySnapshot = await getDocs(collection(db, "produtos"));
-      querySnapshot.forEach(docSnap => {
+      const snapshot = await getDocs(collection(db, "produtos"));
+      const produtosExistentes = {};
+      snapshot.forEach(docSnap => {
         const data = docSnap.data();
-        if (data.nome.toLowerCase().includes(filtro.toLowerCase())) {
-          const item = document.createElement('div');
-          item.className = 'produtoCard';
-          item.innerHTML = `
-            <div class="cardInterno">
-              <img src="${data.imagem}" alt="Imagem Produto">
-              <div class="info">
-                <input class="editNome" data-id="${docSnap.id}" value="${data.nome}" />
-                <input class="editPreco" data-id="${docSnap.id}" type="number" step="0.01" value="${data.preco}" />
-                <input class="editImagem" data-id="${docSnap.id}" value="${data.imagem}" />
-                <input class="editCategoria" data-id="${docSnap.id}" value="${data.categoria || ''}" />
-                <div class="btn-group">
-                  <button class="btn-editar" onclick="editarProduto('${docSnap.id}')">Editar</button>
-                  <button class="btn-remover" onclick="removerProduto('${docSnap.id}')">Remover</button>
-                </div>
-              </div>
-            </div>
-          `;
-          lista.appendChild(item);
-        }
-      });
-    }
-
-    window.editarProduto = async function (id) {
-      const nome = document.querySelector(`.editNome[data-id='${id}']`).value;
-      const preco = parseFloat(document.querySelector(`.editPreco[data-id='${id}']`).value);
-      const imagem = document.querySelector(`.editImagem[data-id='${id}']`).value;
-      const categoria = document.querySelector(`.editCategoria[data-id='${id}']`).value;
-
-      const produtoRef = doc(db, "produtos", id);
-      await updateDoc(produtoRef, { nome, preco, imagem, categoria });
-      alert("Produto atualizado com sucesso!");
-    }
-
-    window.removerProduto = async function (id) {
-      if (confirm("Tem certeza que deseja remover este produto?")) {
-        await deleteDoc(doc(db, "produtos", id));
-        alert("Produto removido com sucesso!");
-        carregarProdutos();
-        carregarCategoriasExistentes();
-      }
-    }
-
-    window.filtrarProdutos = function () {
-      const filtro = document.getElementById('filtroBusca').value;
-      carregarProdutos(filtro);
-    }
-
-    async function carregarCategoriasExistentes() {
-      const querySnapshot = await getDocs(collection(db, "produtos"));
-      const categoriasSet = new Set();
-
-      querySnapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        if (data.categoria) {
-          categoriasSet.add(data.categoria);
-        }
+        produtosExistentes[data.codigo] = { id: docSnap.id, ...data };
       });
 
-      const select = document.getElementById("categoria");
-      const novaCategoriaOption = select.querySelector("option[value='nova']");
-      select.innerHTML = '<option value="">Selecione uma categoria</option>';
+      for (const item of json) {
+        const codigo = String(item["CÓD"] || item["COD"] || "").trim();
+        const nome = String(item["PRODUTO"] || "").trim();
+        const precoStr = String(item["PREÇO VENDA"] || "0").replace("R$", "").replace(",", ".");
+        const preco = parseFloat(precoStr) || 0;
+        const categoria = (item["CATEGORIA"] || "").trim() || "SEM CATEGORIA";
+        const estoque = parseInt(item["ESTOQUE"] || 0);
 
-      categoriasSet.forEach(cat => {
-        const option = document.createElement("option");
-        option.value = cat;
-        option.textContent = cat;
-        select.appendChild(option);
-      });
+        if (!codigo || !nome || preco <= 0) continue;
 
-      select.appendChild(novaCategoriaOption || (() => {
-        const nova = document.createElement("option");
-        nova.value = "nova";
-        nova.textContent = "+ Nova Categoria...";
-        return nova;
-      })());
-    }
-
-    document.addEventListener("DOMContentLoaded", () => {
-      document.getElementById("categoria").addEventListener("change", (e) => {
-        if (e.target.value === "nova") {
-          const novaCategoria = prompt("Digite o nome da nova categoria:");
-          if (novaCategoria) {
-            const select = e.target;
-            const option = document.createElement("option");
-            option.value = novaCategoria;
-            option.textContent = novaCategoria;
-            select.insertBefore(option, select.querySelector("option[value='nova']"));
-            select.value = novaCategoria;
+        try {
+          if (produtosExistentes[codigo]) {
+            const ref = doc(db, "produtos", produtosExistentes[codigo].id);
+            await updateDoc(ref, { preco, estoque });
+            atualizados++;
           } else {
-            e.target.value = "";
+            await addDoc(collection(db, "produtos"), {
+              codigo,
+              nome,
+              preco,
+              imagem: "",
+              categoria,
+              estoque
+            });
+            importados++;
           }
+        } catch (e) {
+          console.error("Erro ao processar:", nome, e);
         }
-      });
+      }
 
+      alert(`${importados} produtos importados e ${atualizados} atualizados com sucesso!`);
       carregarProdutos();
       carregarCategoriasExistentes();
-    });
-  </script>
+      document.getElementById("loadingOverlay").style.display = "none";
+    };
 
+    window.salvarProduto = async function (e) {
+  e.preventDefault();
+  const codigo = document.getElementById('codigo').value;
+  const nome = document.getElementById('nome').value;
+  const preco = parseFloat(document.getElementById('preco').value);
+  const imagem = document.getElementById('imagem').value;
+  const estoque = parseInt(document.getElementById('estoque').value);
+  const categoria = document.getElementById('categoria').value;
+
+  if (!codigo || !nome || !preco || !imagem || !categoria) {
+    alert("Preencha todos os campos.");
+    return;
+  }
+
+  try {
+    await addDoc(collection(db, "produtos"), { codigo, nome, preco, imagem, categoria, estoque });
+    alert("Produto salvo com sucesso!");
+    document.getElementById('formProduto').reset();
+    carregarProdutos();
+    carregarCategoriasExistentes();
+  } catch (error) {
+    console.error("Erro ao salvar produto:", error);
+    alert("Erro ao salvar produto.");
+  }
+}
+
+async function carregarProdutos(filtro = '') {
+  const lista = document.getElementById('listaProdutos');
+  lista.innerHTML = '';
+  const querySnapshot = await getDocs(collection(db, "produtos"));
+  querySnapshot.forEach(docSnap => {
+    const data = docSnap.data();
+    if (data.nome.toLowerCase().includes(filtro.toLowerCase())) {
+      const item = document.createElement('div');
+      item.className = 'produtoCard';
+      item.innerHTML = `
+        <div class="cardInterno">
+          <img src="${data.imagem}" alt="Imagem Produto">
+          <div class="info">
+            <input class="editNome" data-id="${docSnap.id}" value="${data.nome}" />
+            <input class="editPreco" data-id="${docSnap.id}" type="number" step="0.01" value="${data.preco}" />
+            <input class="editImagem" data-id="${docSnap.id}" value="${data.imagem}" />
+            <input class="editCategoria" data-id="${docSnap.id}" value="${data.categoria || ''}" />
+            <input class="editEstoque" data-id="${docSnap.id}" type="number" value="${data.estoque || 0}" />
+            <div class="btn-group">
+              <button class="btn-editar" onclick="editarProduto('${docSnap.id}')">Editar</button>
+              <button class="btn-remover" onclick="removerProduto('${docSnap.id}')">Remover</button>
+            </div>
+          </div>
+        </div>`;
+      lista.appendChild(item);
+    }
+  });
+}
+
+window.editarProduto = async function (id) {
+  const nome = document.querySelector(`.editNome[data-id='${id}']`).value;
+  const preco = parseFloat(document.querySelector(`.editPreco[data-id='${id}']`).value);
+  const imagem = document.querySelector(`.editImagem[data-id='${id}']`).value;
+  const categoria = document.querySelector(`.editCategoria[data-id='${id}']`).value;
+  const estoque = parseInt(document.querySelector(`.editEstoque[data-id='${id}']`).value);
+  await updateDoc(doc(db, "produtos", id), { nome, preco, imagem, categoria, estoque });
+  alert("Produto atualizado com sucesso!");
+}
+
+window.removerProduto = async function (id) {
+  if (confirm("Tem certeza que deseja remover este produto?")) {
+    await deleteDoc(doc(db, "produtos", id));
+    alert("Produto removido com sucesso!");
+    carregarProdutos();
+    carregarCategoriasExistentes();
+  }
+}
+
+window.filtrarProdutos = function () {
+  const filtro = document.getElementById('filtroBusca').value;
+  carregarProdutos(filtro);
+}
+
+async function carregarCategoriasExistentes() {
+  const querySnapshot = await getDocs(collection(db, "produtos"));
+  const categoriasSet = new Set();
+  querySnapshot.forEach(docSnap => {
+    const data = docSnap.data();
+    if (data.categoria) categoriasSet.add(data.categoria);
+  });
+  const select = document.getElementById("categoria");
+  const nova = select.querySelector("option[value='nova']");
+  select.innerHTML = '<option value="">Selecione uma categoria</option>';
+  categoriasSet.forEach(cat => {
+    const option = document.createElement("option");
+    option.value = cat;
+    option.textContent = cat;
+    select.appendChild(option);
+  });
+  select.appendChild(nova || (() => {
+    const o = document.createElement("option");
+    o.value = "nova"; o.textContent = "+ Nova Categoria...";
+    return o;
+  })());
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("categoria").addEventListener("change", e => {
+    if (e.target.value === "nova") {
+      const novaCategoria = prompt("Digite o nome da nova categoria:");
+      if (novaCategoria) {
+        const opt = document.createElement("option");
+        opt.value = novaCategoria; opt.textContent = novaCategoria;
+        e.target.insertBefore(opt, e.target.querySelector("option[value='nova']"));
+        e.target.value = novaCategoria;
+      } else e.target.value = "";
+    }
+  });
+  carregarProdutos();
+  carregarCategoriasExistentes();
+});
+  </script>
   <style>
-    body {
-      background-color: #1c1c1c;
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      color: white;
-      margin: 0;
-    }
-    .container {
-      max-width: 800px;
-      margin: auto;
-      background: #2c2c2c;
-      padding: 20px;
-      border-radius: 10px;
-    }
-    h2 {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    input, select, button {
-      padding: 10px;
-      border: none;
-      border-radius: 5px;
-      font-size: 16px;
-    }
-    select {
-      background-color: #fff;
-      color: #000;
-    }
-    button {
-      background-color: #5edc78;
-      color: white;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #4bc468;
-    }
-    #listaProdutos {
-      margin-top: 30px;
-    }
-    .produtoCard {
-      background: #aaa;
-      border-radius: 8px;
-      margin-bottom: 15px;
-      padding: 10px;
-    }
-    .cardInterno {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: flex-start;
-      gap: 10px;
-    }
-    .cardInterno img {
-      width: 100px;
-      height: 100px;
-      object-fit: contain;
-      border-radius: 8px;
-      background-color: white;
-      border: 1px solid #ccc;
-    }
-    .info {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      min-width: 200px;
-    }
-    .info input {
-      margin: 0;
-    }
-    .btn-group {
-      display: flex;
-      gap: 10px;
-    }
-    .btn-editar, .btn-remover {
-      flex: 1;
-    }
-    .formCard, .searchCard {
-      background: #aaa;
-      padding: 15px;
-      border-radius: 10px;
-      margin-bottom: 20px;
-    }
-    .formGrid {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      margin-bottom: 10px;
-    }
-    .formCard button {
-      width: 100%;
-    }
-    .searchCard input {
-      width: 97%;
-    }
+    body { background-color: #1c1c1c; font-family: Arial; color: white; padding: 20px; margin: 0; }
+    .container { max-width: 800px; margin: auto; background: #2c2c2c; padding: 20px; border-radius: 10px; }
+    h2 { text-align: center; margin-bottom: 20px; }
+    input, select, button { padding: 10px; border: none; border-radius: 5px; font-size: 16px; }
+    select { background-color: #fff; color: #000; }
+    button { background-color: #5edc78; color: white; cursor: pointer; }
+    button:hover { background-color: #4bc468; }
+    #listaProdutos { margin-top: 30px; }
+    .produtoCard { background: #aaa; border-radius: 8px; margin-bottom: 15px; padding: 10px; }
+    .cardInterno { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; }
+    .cardInterno img { width: 100px; height: 100px; object-fit: contain; border-radius: 8px; background: white; border: 1px solid #ccc; }
+    .info { flex: 1; display: flex; flex-direction: column; gap: 5px; min-width: 200px; }
+    .btn-group { display: flex; gap: 10px; }
+    .formCard, .searchCard { background: #aaa; padding: 15px; border-radius: 10px; margin-bottom: 20px; }
+    .formGrid { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; }
+    .formCard button { width: 100%; margin: 10px; }
+    .searchCard input { width: 97%; }
     @media (max-width: 600px) {
-      .cardInterno {
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-      }
-      .cardInterno img {
-        margin-bottom: 10px;
-      }
+      .cardInterno { flex-direction: column; align-items: center; text-align: center; }
+      .cardInterno img { margin-bottom: 10px; }
     }
   </style>
 </head>
-
 <body>
   <div class="container">
     <h2>Adicionar Produto</h2>
+
     <div class="formCard">
       <form id="formProduto" onsubmit="salvarProduto(event)">
         <div class="formGrid">
@@ -276,14 +231,15 @@
           <input id="nome" placeholder="Nome do Produto" required />
           <input id="preco" type="number" placeholder="Preço (ex: 50.00)" required step="0.01" />
           <input id="imagem" placeholder="URL da Imagem" required />
-
-          <!-- NOVO CAMPO DE CATEGORIA COM SELECT BONITO -->
+          <input id="estoque" type="number" placeholder="Estoque" required />
           <select id="categoria" required>
             <option value="">Selecione uma categoria</option>
             <option value="nova">+ Nova Categoria...</option>
           </select>
         </div>
         <button type="submit">Salvar Produto</button>
+        <button type="button" onclick="document.getElementById('excelInput').click()">📥 Importar Excel de Produtos</button>
+        <input type="file" id="excelInput" accept=".xlsx" style="display:none" onchange="importarExcel(event)">
       </form>
     </div>
 
@@ -292,6 +248,10 @@
     </div>
 
     <div id="listaProdutos"></div>
+  </div>
+
+  <div id="loadingOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.8); z-index:9999; color:white; font-size:24px; align-items:center; justify-content:center;">
+    ⏳ Importando produtos... Aguarde.
   </div>
 </body>
 </html>
