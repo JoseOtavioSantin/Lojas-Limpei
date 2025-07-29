@@ -111,69 +111,117 @@
       carregarProdutos(filtro);
     }
 
-window.importarPDF = async function () {
-  const input = document.getElementById("pdfInput");
-  const file = input.files[0];
-  if (!file) {
-    alert("Selecione um arquivo PDF.");
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onload = async function () {
-    const typedArray = new Uint8Array(reader.result);
-    const pdf = await getDocument({ data: typedArray }).promise;
-
-    let textoCompleto = '';
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      const textoPagina = content.items.map(item => item.str).join(' ');
-      textoCompleto += textoPagina + '\n';
-    }
-
-    // 1. Carrega todos os produtos existentes e cria um mapa por código
-    const snapshot = await getDocs(collection(db, "produtos"));
-    const mapaProdutos = new Map();
-    snapshot.forEach(docSnap => {
-      const data = docSnap.data();
-      mapaProdutos.set(data.codigo, { id: docSnap.id, ...data });
-    });
-
-    // 2. Faz o parse do texto e processa cada item
-    const regex = /(\d{1,5})\s+([A-Z0-9\s\-\/().,]+?)\s+([A-Z\s]+)?\s*R\$ ?([\d.,]+)/g;
-    let match, novos = 0, atualizados = 0;
-
-    while ((match = regex.exec(textoCompleto)) !== null) {
-      const [_, codigo, nome, categoria, precoStr] = match;
-      const preco = parseFloat(precoStr.replace('.', '').replace(',', '.'));
-      const produtoExistente = mapaProdutos.get(codigo.trim());
-
-      if (produtoExistente) {
-        // Atualiza apenas o preço
-        const ref = doc(db, "produtos", produtoExistente.id);
-        await updateDoc(ref, { preco });
-        atualizados++;
-      } else {
-        // Cadastra novo produto
-        await addDoc(collection(db, "produtos"), {
-          codigo: codigo.trim(),
-          nome: nome.trim(),
-          preco,
-          imagem: '',
-          categoria: (categoria || '').trim() || 'Outros'
-        });
-        novos++;
+    window.importarPDF = async function () {
+      const input = document.getElementById("pdfInput");
+      const file = input.files[0];
+      if (!file) {
+        alert("Selecione um arquivo PDF.");
+        return;
       }
+
+      const reader = new FileReader();
+      reader.onload = async function () {
+        const typedArray = new Uint8Array(reader.result);
+        const pdf = await getDocument({ data: typedArray }).promise;
+
+        let textoCompleto = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          const textoPagina = content.items.map(item => item.str).join(' ');
+          textoCompleto += textoPagina + '\n';
+        }
+
+        const snapshot = await getDocs(collection(db, "produtos"));
+        const mapaProdutos = new Map();
+        snapshot.forEach(docSnap => {
+          const data = docSnap.data();
+          mapaProdutos.set(data.codigo, { id: docSnap.id, ...data });
+        });
+
+        const regex = /(\d{1,5})\s+([A-Z0-9\s\-\/().,]+?)\s+([A-Z\s]+)?\s*R\$ ?([\d.,]+)/g;
+        let match, novos = 0, atualizados = 0;
+
+        while ((match = regex.exec(textoCompleto)) !== null) {
+          const [_, codigo, nome, categoria, precoStr] = match;
+          const preco = parseFloat(precoStr.replace('.', '').replace(',', '.'));
+          const produtoExistente = mapaProdutos.get(codigo.trim());
+
+          if (produtoExistente) {
+            const ref = doc(db, "produtos", produtoExistente.id);
+            await updateDoc(ref, { preco });
+            atualizados++;
+          } else {
+            await addDoc(collection(db, "produtos"), {
+              codigo: codigo.trim(),
+              nome: nome.trim(),
+              preco,
+              imagem: '',
+              categoria: (categoria || '').trim() || 'Outros'
+            });
+            novos++;
+          }
+        }
+
+        alert(`${novos} novos produtos adicionados, ${atualizados} atualizados.`);
+        carregarProdutos();
+        carregarCategoriasExistentes();
+      };
+
+      reader.readAsArrayBuffer(file);
     }
 
-    alert(`${novos} novos produtos adicionados, ${atualizados} atualizados.`);
-    carregarProdutos();
-    carregarCategoriasExistentes();
-  };
+    async function carregarCategoriasExistentes() {
+      const querySnapshot = await getDocs(collection(db, "produtos"));
+      const categoriasSet = new Set();
 
-  reader.readAsArrayBuffer(file);
-}
+      querySnapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        if (data.categoria) {
+          categoriasSet.add(data.categoria);
+        }
+      });
+
+      const select = document.getElementById("categoria");
+      const novaCategoriaOption = select.querySelector("option[value='nova']");
+      select.innerHTML = '<option value="">Selecione uma categoria</option>';
+
+      categoriasSet.forEach(cat => {
+        const option = document.createElement("option");
+        option.value = cat;
+        option.textContent = cat;
+        select.appendChild(option);
+      });
+
+      select.appendChild(novaCategoriaOption || (() => {
+        const nova = document.createElement("option");
+        nova.value = "nova";
+        nova.textContent = "+ Nova Categoria...";
+        return nova;
+      })());
+    }
+
+    // 🚀 IMPORTANTE: Carregamento inicial ao abrir a página
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("categoria").addEventListener("change", (e) => {
+        if (e.target.value === "nova") {
+          const novaCategoria = prompt("Digite o nome da nova categoria:");
+          if (novaCategoria) {
+            const select = e.target;
+            const option = document.createElement("option");
+            option.value = novaCategoria;
+            option.textContent = novaCategoria;
+            select.insertBefore(option, select.querySelector("option[value='nova']"));
+            select.value = novaCategoria;
+          } else {
+            e.target.value = "";
+          }
+        }
+      });
+
+      carregarProdutos();
+      carregarCategoriasExistentes();
+    });
   </script>
 
   <style>
