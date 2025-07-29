@@ -25,6 +25,66 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
+    async function carregarProdutos(filtro = '') {
+      const lista = document.getElementById('listaProdutos');
+      lista.innerHTML = '';
+      const querySnapshot = await getDocs(collection(db, "produtos"));
+      console.log("Produtos encontrados:", querySnapshot.size);
+      querySnapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        if (data.nome.toLowerCase().includes(filtro.toLowerCase())) {
+          const item = document.createElement('div');
+          item.className = 'produtoCard';
+          item.innerHTML = `
+            <div class="cardInterno">
+              <img src="${data.imagem}" alt="Imagem Produto">
+              <div class="info">
+                <input class="editNome" data-id="${docSnap.id}" value="${data.nome}" />
+                <input class="editPreco" data-id="${docSnap.id}" type="number" step="0.01" value="${data.preco}" />
+                <input class="editImagem" data-id="${docSnap.id}" value="${data.imagem}" />
+                <input class="editCategoria" data-id="${docSnap.id}" value="${data.categoria || ''}" />
+                <div class="btn-group">
+                  <button class="btn-editar" onclick="editarProduto('${docSnap.id}')">Editar</button>
+                  <button class="btn-remover" onclick="removerProduto('${docSnap.id}')">Remover</button>
+                </div>
+              </div>
+            </div>
+          `;
+          lista.appendChild(item);
+        }
+      });
+    }
+
+    async function carregarCategoriasExistentes() {
+      const querySnapshot = await getDocs(collection(db, "produtos"));
+      const categoriasSet = new Set();
+
+      querySnapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        if (data.categoria) {
+          categoriasSet.add(data.categoria);
+        }
+      });
+
+      const select = document.getElementById("categoria");
+      const novaCategoriaOption = select.querySelector("option[value='nova']");
+      select.innerHTML = '<option value="">Selecione uma categoria</option>';
+
+      categoriasSet.forEach(cat => {
+        const option = document.createElement("option");
+        option.value = cat;
+        option.textContent = cat;
+        select.appendChild(option);
+      });
+
+      select.appendChild(novaCategoriaOption || (() => {
+        const nova = document.createElement("option");
+        nova.value = "nova";
+        nova.textContent = "+ Nova Categoria...";
+        return nova;
+      })());
+    }
+
     window.salvarProduto = async function salvarProduto(e) {
       e.preventDefault();
 
@@ -57,35 +117,6 @@
       }
     }
 
-    async function carregarProdutos(filtro = '') {
-      const lista = document.getElementById('listaProdutos');
-      lista.innerHTML = '';
-      const querySnapshot = await getDocs(collection(db, "produtos"));
-      querySnapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        if (data.nome.toLowerCase().includes(filtro.toLowerCase())) {
-          const item = document.createElement('div');
-          item.className = 'produtoCard';
-          item.innerHTML = `
-            <div class="cardInterno">
-              <img src="${data.imagem}" alt="Imagem Produto">
-              <div class="info">
-                <input class="editNome" data-id="${docSnap.id}" value="${data.nome}" />
-                <input class="editPreco" data-id="${docSnap.id}" type="number" step="0.01" value="${data.preco}" />
-                <input class="editImagem" data-id="${docSnap.id}" value="${data.imagem}" />
-                <input class="editCategoria" data-id="${docSnap.id}" value="${data.categoria || ''}" />
-                <div class="btn-group">
-                  <button class="btn-editar" onclick="editarProduto('${docSnap.id}')">Editar</button>
-                  <button class="btn-remover" onclick="removerProduto('${docSnap.id}')">Remover</button>
-                </div>
-              </div>
-            </div>
-          `;
-          lista.appendChild(item);
-        }
-      });
-    }
-
     window.editarProduto = async function (id) {
       const nome = document.querySelector(`.editNome[data-id='${id}']`).value;
       const preco = parseFloat(document.querySelector(`.editPreco[data-id='${id}']`).value);
@@ -111,7 +142,7 @@
       carregarProdutos(filtro);
     }
 
-    window.importarPDF = async function () {
+    async function importarPDF() {
       const input = document.getElementById("pdfInput");
       const file = input.files[0];
       if (!file) {
@@ -129,7 +160,8 @@
           const page = await pdf.getPage(i);
           const content = await page.getTextContent();
           const textoPagina = content.items.map(item => item.str).join(' ');
-          textoCompleto += textoPagina + '\n';
+          textoCompleto += textoPagina + '
+';
         }
 
         const snapshot = await getDocs(collection(db, "produtos"));
@@ -171,37 +203,6 @@
       reader.readAsArrayBuffer(file);
     }
 
-    async function carregarCategoriasExistentes() {
-      const querySnapshot = await getDocs(collection(db, "produtos"));
-      const categoriasSet = new Set();
-
-      querySnapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        if (data.categoria) {
-          categoriasSet.add(data.categoria);
-        }
-      });
-
-      const select = document.getElementById("categoria");
-      const novaCategoriaOption = select.querySelector("option[value='nova']");
-      select.innerHTML = '<option value="">Selecione uma categoria</option>';
-
-      categoriasSet.forEach(cat => {
-        const option = document.createElement("option");
-        option.value = cat;
-        option.textContent = cat;
-        select.appendChild(option);
-      });
-
-      select.appendChild(novaCategoriaOption || (() => {
-        const nova = document.createElement("option");
-        nova.value = "nova";
-        nova.textContent = "+ Nova Categoria...";
-        return nova;
-      })());
-    }
-
-    // 🚀 IMPORTANTE: Carregamento inicial ao abrir a página
     document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("categoria").addEventListener("change", (e) => {
         if (e.target.value === "nova") {
@@ -220,7 +221,6 @@
       });
 
       document.getElementById("btnImportarPDF").addEventListener("click", importarPDF);
-      
       carregarProdutos();
       carregarCategoriasExistentes();
     });
@@ -252,7 +252,6 @@
     }
   </style>
 </head>
-
 <body>
   <div class="container">
     <h2>Adicionar Produto</h2>
