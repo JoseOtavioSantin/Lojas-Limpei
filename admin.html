@@ -4,14 +4,9 @@
   <meta charset="UTF-8">
   <title>Admin - Adicionar Produto</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <!-- PDF.js -->
-  <script type="module" src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.mjs"></script>
-
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-    import { getDocument } from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.mjs';
 
     const firebaseConfig = {
       apiKey: "AIzaSyA9Vsal6phbDpWIJOtkgLUt7H_b9n-LVMc",
@@ -24,66 +19,6 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
-
-    async function carregarProdutos(filtro = '') {
-      const lista = document.getElementById('listaProdutos');
-      lista.innerHTML = '';
-      const querySnapshot = await getDocs(collection(db, "produtos"));
-      console.log("Produtos encontrados:", querySnapshot.size);
-      querySnapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        if (data.nome.toLowerCase().includes(filtro.toLowerCase())) {
-          const item = document.createElement('div');
-          item.className = 'produtoCard';
-          item.innerHTML = `
-            <div class="cardInterno">
-              <img src="${data.imagem}" alt="Imagem Produto">
-              <div class="info">
-                <input class="editNome" data-id="${docSnap.id}" value="${data.nome}" />
-                <input class="editPreco" data-id="${docSnap.id}" type="number" step="0.01" value="${data.preco}" />
-                <input class="editImagem" data-id="${docSnap.id}" value="${data.imagem}" />
-                <input class="editCategoria" data-id="${docSnap.id}" value="${data.categoria || ''}" />
-                <div class="btn-group">
-                  <button class="btn-editar" onclick="editarProduto('${docSnap.id}')">Editar</button>
-                  <button class="btn-remover" onclick="removerProduto('${docSnap.id}')">Remover</button>
-                </div>
-              </div>
-            </div>
-          `;
-          lista.appendChild(item);
-        }
-      });
-    }
-
-    async function carregarCategoriasExistentes() {
-      const querySnapshot = await getDocs(collection(db, "produtos"));
-      const categoriasSet = new Set();
-
-      querySnapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        if (data.categoria) {
-          categoriasSet.add(data.categoria);
-        }
-      });
-
-      const select = document.getElementById("categoria");
-      const novaCategoriaOption = select.querySelector("option[value='nova']");
-      select.innerHTML = '<option value="">Selecione uma categoria</option>';
-
-      categoriasSet.forEach(cat => {
-        const option = document.createElement("option");
-        option.value = cat;
-        option.textContent = cat;
-        select.appendChild(option);
-      });
-
-      select.appendChild(novaCategoriaOption || (() => {
-        const nova = document.createElement("option");
-        nova.value = "nova";
-        nova.textContent = "+ Nova Categoria...";
-        return nova;
-      })());
-    }
 
     window.salvarProduto = async function salvarProduto(e) {
       e.preventDefault();
@@ -117,6 +52,35 @@
       }
     }
 
+    async function carregarProdutos(filtro = '') {
+      const lista = document.getElementById('listaProdutos');
+      lista.innerHTML = '';
+      const querySnapshot = await getDocs(collection(db, "produtos"));
+      querySnapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        if (data.nome.toLowerCase().includes(filtro.toLowerCase())) {
+          const item = document.createElement('div');
+          item.className = 'produtoCard';
+          item.innerHTML = `
+            <div class="cardInterno">
+              <img src="${data.imagem}" alt="Imagem Produto">
+              <div class="info">
+                <input class="editNome" data-id="${docSnap.id}" value="${data.nome}" />
+                <input class="editPreco" data-id="${docSnap.id}" type="number" step="0.01" value="${data.preco}" />
+                <input class="editImagem" data-id="${docSnap.id}" value="${data.imagem}" />
+                <input class="editCategoria" data-id="${docSnap.id}" value="${data.categoria || ''}" />
+                <div class="btn-group">
+                  <button class="btn-editar" onclick="editarProduto('${docSnap.id}')">Editar</button>
+                  <button class="btn-remover" onclick="removerProduto('${docSnap.id}')">Remover</button>
+                </div>
+              </div>
+            </div>
+          `;
+          lista.appendChild(item);
+        }
+      });
+    }
+
     window.editarProduto = async function (id) {
       const nome = document.querySelector(`.editNome[data-id='${id}']`).value;
       const preco = parseFloat(document.querySelector(`.editPreco[data-id='${id}']`).value);
@@ -142,65 +106,34 @@
       carregarProdutos(filtro);
     }
 
-    async function importarPDF() {
-      const input = document.getElementById("pdfInput");
-      const file = input.files[0];
-      if (!file) {
-        alert("Selecione um arquivo PDF.");
-        return;
-      }
+    async function carregarCategoriasExistentes() {
+      const querySnapshot = await getDocs(collection(db, "produtos"));
+      const categoriasSet = new Set();
 
-      const reader = new FileReader();
-      reader.onload = async function () {
-        const typedArray = new Uint8Array(reader.result);
-        const pdf = await getDocument({ data: typedArray }).promise;
-
-        let textoCompleto = '';
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const content = await page.getTextContent();
-          const textoPagina = content.items.map(item => item.str).join(' ');
-          textoCompleto += textoPagina + '
-';
+      querySnapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        if (data.categoria) {
+          categoriasSet.add(data.categoria);
         }
+      });
 
-        const snapshot = await getDocs(collection(db, "produtos"));
-        const mapaProdutos = new Map();
-        snapshot.forEach(docSnap => {
-          const data = docSnap.data();
-          mapaProdutos.set(data.codigo, { id: docSnap.id, ...data });
-        });
+      const select = document.getElementById("categoria");
+      const novaCategoriaOption = select.querySelector("option[value='nova']");
+      select.innerHTML = '<option value="">Selecione uma categoria</option>';
 
-        const regex = /(\d{1,5})\s+([A-Z0-9\s\-\/().,]+?)\s+([A-Z\s]+)?\s*R\$ ?([\d.,]+)/g;
-        let match, novos = 0, atualizados = 0;
+      categoriasSet.forEach(cat => {
+        const option = document.createElement("option");
+        option.value = cat;
+        option.textContent = cat;
+        select.appendChild(option);
+      });
 
-        while ((match = regex.exec(textoCompleto)) !== null) {
-          const [_, codigo, nome, categoria, precoStr] = match;
-          const preco = parseFloat(precoStr.replace('.', '').replace(',', '.'));
-          const produtoExistente = mapaProdutos.get(codigo.trim());
-
-          if (produtoExistente) {
-            const ref = doc(db, "produtos", produtoExistente.id);
-            await updateDoc(ref, { preco });
-            atualizados++;
-          } else {
-            await addDoc(collection(db, "produtos"), {
-              codigo: codigo.trim(),
-              nome: nome.trim(),
-              preco,
-              imagem: '',
-              categoria: (categoria || '').trim() || 'Outros'
-            });
-            novos++;
-          }
-        }
-
-        alert(`${novos} novos produtos adicionados, ${atualizados} atualizados.`);
-        carregarProdutos();
-        carregarCategoriasExistentes();
-      };
-
-      reader.readAsArrayBuffer(file);
+      select.appendChild(novaCategoriaOption || (() => {
+        const nova = document.createElement("option");
+        nova.value = "nova";
+        nova.textContent = "+ Nova Categoria...";
+        return nova;
+      })());
     }
 
     document.addEventListener("DOMContentLoaded", () => {
@@ -220,42 +153,122 @@
         }
       });
 
-      document.getElementById("btnImportarPDF").addEventListener("click", importarPDF);
       carregarProdutos();
       carregarCategoriasExistentes();
     });
   </script>
 
   <style>
-    body { background-color: #1c1c1c; font-family: Arial, sans-serif; padding: 20px; color: white; margin: 0; }
-    .container { max-width: 800px; margin: auto; background: #2c2c2c; padding: 20px; border-radius: 10px; }
-    h2 { text-align: center; margin-bottom: 20px; }
-    input, select, button { padding: 10px; border: none; border-radius: 5px; font-size: 16px; }
-    select { background-color: #fff; color: #000; }
-    button { background-color: #5edc78; color: white; cursor: pointer; }
-    button:hover { background-color: #4bc468; }
-    #listaProdutos { margin-top: 30px; }
-    .produtoCard { background: #aaa; border-radius: 8px; margin-bottom: 15px; padding: 10px; }
-    .cardInterno { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; }
-    .cardInterno img { width: 100px; height: 100px; object-fit: contain; border-radius: 8px; background-color: white; border: 1px solid #ccc; }
-    .info { flex: 1; display: flex; flex-direction: column; gap: 5px; min-width: 200px; }
-    .info input { margin: 0; }
-    .btn-group { display: flex; gap: 10px; }
-    .btn-editar, .btn-remover { flex: 1; }
-    .formCard, .searchCard { background: #aaa; padding: 15px; border-radius: 10px; margin-bottom: 20px; }
-    .formGrid { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; }
-    .formCard button { width: 100%; }
-    .searchCard input { width: 97%; }
+    body {
+      background-color: #1c1c1c;
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      color: white;
+      margin: 0;
+    }
+    .container {
+      max-width: 800px;
+      margin: auto;
+      background: #2c2c2c;
+      padding: 20px;
+      border-radius: 10px;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    input, select, button {
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+    select {
+      background-color: #fff;
+      color: #000;
+    }
+    button {
+      background-color: #5edc78;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #4bc468;
+    }
+    #listaProdutos {
+      margin-top: 30px;
+    }
+    .produtoCard {
+      background: #aaa;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      padding: 10px;
+    }
+    .cardInterno {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .cardInterno img {
+      width: 100px;
+      height: 100px;
+      object-fit: contain;
+      border-radius: 8px;
+      background-color: white;
+      border: 1px solid #ccc;
+    }
+    .info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      min-width: 200px;
+    }
+    .info input {
+      margin: 0;
+    }
+    .btn-group {
+      display: flex;
+      gap: 10px;
+    }
+    .btn-editar, .btn-remover {
+      flex: 1;
+    }
+    .formCard, .searchCard {
+      background: #aaa;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+    .formGrid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .formCard button {
+      width: 100%;
+    }
+    .searchCard input {
+      width: 97%;
+    }
     @media (max-width: 600px) {
-      .cardInterno { flex-direction: column; align-items: center; text-align: center; }
-      .cardInterno img { margin-bottom: 10px; }
+      .cardInterno {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+      .cardInterno img {
+        margin-bottom: 10px;
+      }
     }
   </style>
 </head>
+
 <body>
   <div class="container">
     <h2>Adicionar Produto</h2>
-
     <div class="formCard">
       <form id="formProduto" onsubmit="salvarProduto(event)">
         <div class="formGrid">
@@ -263,6 +276,8 @@
           <input id="nome" placeholder="Nome do Produto" required />
           <input id="preco" type="number" placeholder="Preço (ex: 50.00)" required step="0.01" />
           <input id="imagem" placeholder="URL da Imagem" required />
+
+          <!-- NOVO CAMPO DE CATEGORIA COM SELECT BONITO -->
           <select id="categoria" required>
             <option value="">Selecione uma categoria</option>
             <option value="nova">+ Nova Categoria...</option>
@@ -270,12 +285,6 @@
         </div>
         <button type="submit">Salvar Produto</button>
       </form>
-    </div>
-
-    <div class="formCard">
-      <label style="margin-bottom: 10px; display: block;">Importar produtos por PDF</label>
-      <input type="file" id="pdfInput" accept="application/pdf" />
-      <button id="btnImportarPDF">Importar Produtos</button>
     </div>
 
     <div class="searchCard">
