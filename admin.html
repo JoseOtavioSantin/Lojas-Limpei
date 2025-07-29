@@ -219,6 +219,8 @@
         }
       });
 
+      document.getElementById("btnImportarPDF").addEventListener("click", importarPDF);
+      
       carregarProdutos();
       carregarCategoriasExistentes();
     });
@@ -274,7 +276,7 @@
     <div class="formCard">
       <label style="margin-bottom: 10px; display: block;">Importar produtos por PDF</label>
       <input type="file" id="pdfInput" accept="application/pdf" />
-      <button onclick="importarPDF()">Importar Produtos</button>
+      <button id="btnImportarPDF">Importar Produtos</button>
     </div>
 
     <div class="searchCard">
