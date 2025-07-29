@@ -4,9 +4,14 @@
   <meta charset="UTF-8">
   <title>Admin - Adicionar Produto</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- PDF.js -->
+  <script type="module" src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.mjs"></script>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getDocument } from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.mjs';
 
     const firebaseConfig = {
       apiKey: "AIzaSyA9Vsal6phbDpWIJOtkgLUt7H_b9n-LVMc",
@@ -106,6 +111,56 @@
       carregarProdutos(filtro);
     }
 
+    window.importarPDF = async function () {
+      const input = document.getElementById("pdfInput");
+      const file = input.files[0];
+      if (!file) {
+        alert("Selecione um arquivo PDF.");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = async function () {
+        const typedArray = new Uint8Array(reader.result);
+        const pdf = await getDocument({ data: typedArray }).promise;
+
+        let textoCompleto = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          const textoPagina = content.items.map(item => item.str).join(' ');
+          textoCompleto += textoPagina + '\n';
+        }
+
+        const regex = /(\d{1,5})\s+([A-Z0-9\s\-\/().,]+?)\s+([A-Z\s]+)?\s*R\$ ?([\d.,]+)/g;
+        let match, contador = 0;
+
+        while ((match = regex.exec(textoCompleto)) !== null) {
+          const [_, codigo, nome, categoria, precoStr] = match;
+          const preco = parseFloat(precoStr.replace('.', '').replace(',', '.'));
+
+          try {
+            await addDoc(collection(db, "produtos"), {
+              codigo: codigo.trim(),
+              nome: nome.trim(),
+              preco,
+              imagem: '',
+              categoria: (categoria || '').trim() || 'Outros'
+            });
+            contador++;
+          } catch (err) {
+            console.error("Erro ao salvar produto:", nome, err);
+          }
+        }
+
+        alert(`${contador} produtos importados com sucesso!`);
+        carregarProdutos();
+        carregarCategoriasExistentes();
+      };
+
+      reader.readAsArrayBuffer(file);
+    }
+
     async function carregarCategoriasExistentes() {
       const querySnapshot = await getDocs(collection(db, "produtos"));
       const categoriasSet = new Set();
@@ -159,109 +214,28 @@
   </script>
 
   <style>
-    body {
-      background-color: #1c1c1c;
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      color: white;
-      margin: 0;
-    }
-    .container {
-      max-width: 800px;
-      margin: auto;
-      background: #2c2c2c;
-      padding: 20px;
-      border-radius: 10px;
-    }
-    h2 {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    input, select, button {
-      padding: 10px;
-      border: none;
-      border-radius: 5px;
-      font-size: 16px;
-    }
-    select {
-      background-color: #fff;
-      color: #000;
-    }
-    button {
-      background-color: #5edc78;
-      color: white;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #4bc468;
-    }
-    #listaProdutos {
-      margin-top: 30px;
-    }
-    .produtoCard {
-      background: #aaa;
-      border-radius: 8px;
-      margin-bottom: 15px;
-      padding: 10px;
-    }
-    .cardInterno {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: flex-start;
-      gap: 10px;
-    }
-    .cardInterno img {
-      width: 100px;
-      height: 100px;
-      object-fit: contain;
-      border-radius: 8px;
-      background-color: white;
-      border: 1px solid #ccc;
-    }
-    .info {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      min-width: 200px;
-    }
-    .info input {
-      margin: 0;
-    }
-    .btn-group {
-      display: flex;
-      gap: 10px;
-    }
-    .btn-editar, .btn-remover {
-      flex: 1;
-    }
-    .formCard, .searchCard {
-      background: #aaa;
-      padding: 15px;
-      border-radius: 10px;
-      margin-bottom: 20px;
-    }
-    .formGrid {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      margin-bottom: 10px;
-    }
-    .formCard button {
-      width: 100%;
-    }
-    .searchCard input {
-      width: 97%;
-    }
+    body { background-color: #1c1c1c; font-family: Arial, sans-serif; padding: 20px; color: white; margin: 0; }
+    .container { max-width: 800px; margin: auto; background: #2c2c2c; padding: 20px; border-radius: 10px; }
+    h2 { text-align: center; margin-bottom: 20px; }
+    input, select, button { padding: 10px; border: none; border-radius: 5px; font-size: 16px; }
+    select { background-color: #fff; color: #000; }
+    button { background-color: #5edc78; color: white; cursor: pointer; }
+    button:hover { background-color: #4bc468; }
+    #listaProdutos { margin-top: 30px; }
+    .produtoCard { background: #aaa; border-radius: 8px; margin-bottom: 15px; padding: 10px; }
+    .cardInterno { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; }
+    .cardInterno img { width: 100px; height: 100px; object-fit: contain; border-radius: 8px; background-color: white; border: 1px solid #ccc; }
+    .info { flex: 1; display: flex; flex-direction: column; gap: 5px; min-width: 200px; }
+    .info input { margin: 0; }
+    .btn-group { display: flex; gap: 10px; }
+    .btn-editar, .btn-remover { flex: 1; }
+    .formCard, .searchCard { background: #aaa; padding: 15px; border-radius: 10px; margin-bottom: 20px; }
+    .formGrid { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; }
+    .formCard button { width: 100%; }
+    .searchCard input { width: 97%; }
     @media (max-width: 600px) {
-      .cardInterno {
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-      }
-      .cardInterno img {
-        margin-bottom: 10px;
-      }
+      .cardInterno { flex-direction: column; align-items: center; text-align: center; }
+      .cardInterno img { margin-bottom: 10px; }
     }
   </style>
 </head>
@@ -269,6 +243,7 @@
 <body>
   <div class="container">
     <h2>Adicionar Produto</h2>
+
     <div class="formCard">
       <form id="formProduto" onsubmit="salvarProduto(event)">
         <div class="formGrid">
@@ -276,8 +251,6 @@
           <input id="nome" placeholder="Nome do Produto" required />
           <input id="preco" type="number" placeholder="Preço (ex: 50.00)" required step="0.01" />
           <input id="imagem" placeholder="URL da Imagem" required />
-
-          <!-- NOVO CAMPO DE CATEGORIA COM SELECT BONITO -->
           <select id="categoria" required>
             <option value="">Selecione uma categoria</option>
             <option value="nova">+ Nova Categoria...</option>
@@ -285,6 +258,12 @@
         </div>
         <button type="submit">Salvar Produto</button>
       </form>
+    </div>
+
+    <div class="formCard">
+      <label style="margin-bottom: 10px; display: block;">Importar produtos por PDF</label>
+      <input type="file" id="pdfInput" accept="application/pdf" />
+      <button onclick="importarPDF()">Importar Produtos</button>
     </div>
 
     <div class="searchCard">
